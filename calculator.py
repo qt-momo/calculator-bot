@@ -148,7 +148,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             
             try:
                 # Show popup notification and delete the message
-                await query.answer("Message removed! 🗑️", show_alert=True)
+                await query.answer("Message removed! 🗑️")
                 logger.debug("✅ Popup notification sent for message removal")
                 
                 # Delete the message
@@ -159,12 +159,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 logger.error(f"❌ Error deleting message {query.message.message_id}: {delete_error}")
                 logger.error(f"🔍 Delete error traceback: {traceback.format_exc()}")
                 try:
-                    await query.answer("Failed to remove message ❌", show_alert=True)
+                    await query.answer("Failed to remove message ❌")
                 except Exception as answer_error:
                     logger.error(f"❌ Failed to send error popup: {answer_error}")
         else:
             logger.warning(f"⚠️ Unknown callback data received: {query.data}")
-            await query.answer("Unknown action", show_alert=True)
+            await query.answer("Unknown action")
             
     except Exception as e:
         logger.error(f"❌ Error in handle_callback_query: {e}")
