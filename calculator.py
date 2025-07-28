@@ -84,7 +84,7 @@ def extract_user_info(update: Update):
     return info
 
 # Send a message with typing indicator safely
-async def safe_send_message(bot, chat_id, text, reply_to=None):
+async def safe_send_message(bot, chat_id, text, reply_to=None, reply_markup=None):
     logger.debug(f"✉️ safe_send_message called with chat_id={chat_id}, reply_to={reply_to}, text='{text}'")
     async with semaphore:
         try:
@@ -92,10 +92,10 @@ async def safe_send_message(bot, chat_id, text, reply_to=None):
             asyncio.create_task(bot.send_chat_action(chat_id, ChatAction.TYPING))
             logger.debug(f"💭 Sent typing action to chat {chat_id}")
             if reply_to:
-                asyncio.create_task(bot.send_message(chat_id, text, reply_to_message_id=reply_to))
+                asyncio.create_task(bot.send_message(chat_id, text, reply_to_message_id=reply_to, reply_markup=reply_markup))
                 logger.debug(f"➡️ Sending reply message to {chat_id}, reply_to {reply_to}")
             else:
-                asyncio.create_task(bot.send_message(chat_id, text))
+                asyncio.create_task(bot.send_message(chat_id, text, reply_markup=reply_markup))
                 logger.debug(f"⬆️ Sending new message to {chat_id}")
             logger.info(f"✅ Message queued for chat {chat_id}")
         except Exception as e:
