@@ -7,7 +7,7 @@ import os
 from simpleeval import simple_eval, InvalidExpression
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.constants import ChatAction, ChatType
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -55,7 +55,7 @@ COMMANDS = [
 logger.debug(f"📋 Defined bot commands: {COMMANDS}")
 
 # Updated regex pattern for math expressions including percentage patterns
-MATH_PATTERN = re.compile(r'([-+]?\d[\d\.\s]*(?:[+\-*/×÷%]\s*[\d\.\s]+)+|[\d\.]+\s*%\s*of\s*[\d\.]+)')
+MATH_PATTERN = re.compile(r'([\d\.]+\s*%\s*of\s*[\d\.]+|[-+]?\d[\d\.\s]*(?:[+\-*/×÷%]\s*[\d\.\s]+)+)')
 logger.debug(f"🔧 Compiled MATH_PATTERN: {MATH_PATTERN.pattern}")
 
 # Concurrency control for sending messages
@@ -168,41 +168,22 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"❌ Error sending /help reply: {e}")
 
 # Function to handle percentage calculations
-def handle_percentage(expr):
-    """Handle percentage calculations like '10% of 100' or '5% of 10'"""
-    logger.debug(f"🔢 Handling percentage expression: '{expr}'")
+def handle_percentage(text):
+    """Handle percentage calculations like '10% of 100' or '5% of 10' - only for exact matches"""
+    logger.debug(f"🔢 Checking for exact percentage format: '{text}'")
     
-    # Handle "X% of Y" format
-    percent_of_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)', re.IGNORECASE)
-    match = percent_of_pattern.search(expr)
+    # Check if the entire message is exactly in "X% of Y" format (with flexible whitespace)
+    exact_percent_pattern = re.compile(r'^\s*(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)\s*$', re.IGNORECASE)
+    match = exact_percent_pattern.match(text)
     if match:
         percent_value = float(match.group(1))
         base_value = float(match.group(2))
         result = (percent_value / 100) * base_value
-        logger.debug(f"🔢 Calculated {percent_value}% of {base_value} = {result}")
-        return result, f"{percent_value}% of {base_value}"
+        logger.debug(f"🔢 Exact percentage match: {percent_value}% of {base_value} = {result}")
+        return result, f"{percent_value}% of {base_value}", True
     
-    # Handle regular percentage in expressions (like 10%+20 = 10*0.01+20)
-    # Only convert standalone % to *0.01, not in "X% of Y" patterns
-    if '% of' not in expr.lower():
-        safe_expr = expr.replace('%', '*0.01')
-        logger.debug(f"🔢 Converted standalone % expression: '{expr}' -> '{safe_expr}'")
-        return None, safe_expr  # Return None to indicate normal processing
-    
-    return None, expr
-
-# Handle callback queries (delete button)
-async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.debug("🔘 handle_callback_query invoked")
-    query = update.callback_query
-    await query.answer()
-    
-    if query.data == "delete_msg":
-        try:
-            await query.delete_message()
-            logger.info("✅ Message deleted via callback")
-        except Exception as e:
-            logger.error(f"❌ Error deleting message: {e}")
+    logger.debug(f"🔢 Not an exact percentage format, proceeding with normal math processing")
+    return None, text, False
 
 # Calculate math expressions from messages
 async def calculate_expression(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -349,9 +330,6 @@ def main():
         
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, calculate_expression))
         logger.debug("➕ Added message handler for calculations")
-        
-        app.add_handler(CallbackQueryHandler(handle_callback_query))
-        logger.debug("➕ Added callback query handler for delete button")
 
         async def set_commands(app):
             logger.debug("🔧 Setting bot commands via API")
