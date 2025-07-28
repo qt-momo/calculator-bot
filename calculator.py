@@ -142,15 +142,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     
     try:
-        await query.answer()
-        logger.debug(f"🔘 Callback query answered for query_id: {query.id}")
-        
         if query.data == "remove_message":
             ui = extract_user_info(update)
             logger.info(f"🗑️ Remove button clicked by {ui['full_name']} (@{ui['username']}) [ID: {ui['user_id']}] in chat {ui['chat_id']}")
             
             try:
-                # Show popup notification
+                # Show popup notification and delete the message
                 await query.answer("Message removed! 🗑️", show_alert=True)
                 logger.debug("✅ Popup notification sent for message removal")
                 
