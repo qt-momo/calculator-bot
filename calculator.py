@@ -399,33 +399,7 @@ async def calculate_expression(update: Update, context: ContextTypes.DEFAULT_TYP
             # Try to send a generic error message
             await update.message.reply_text("❌ Sorry, there was an unexpected error processing your message.")
         except Exception as fallback_error:
-            logger.error(f"❌ Failed to send fallback error message: {fallback_error}")×", "*").replace("÷", "/")
-        logger.debug(f"🧮 Processing expression: original='{original}', safe='{safe}'")
-        try:
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, lambda: simple_eval(safe))
-            if isinstance(result, float):
-                rounded = round(result, 2)
-                logger.debug(f"🔢 Raw result={result}, rounded={rounded}")
-                result = rounded
-            reply = f"{original} = {result}"
-            await safe_send_message(
-                context.bot,
-                update.effective_chat.id,
-                reply,
-                reply_to=update.message.message_id if not is_private else None,
-            )
-            response_time = round((time.time() - start_time) * 1000)
-            logger.debug(f"⏱ Response time: {response_time} ms for expression '{original}'")
-            if random.random() < 0.1:
-                logger.info(
-                    f"✅ Replied: '{reply}' in {response_time} ms to {ui['full_name']} "
-                    f"(@{ui['username']}) in {ui['chat_title']} [{ui['chat_id']}] {ui['chat_link']}"
-                )
-        except InvalidExpression:
-            logger.error(f"❌ Invalid expression attempted: '{original}' from {ui['full_name']} (@{ui['username']})")
-        except Exception as e:
-            logger.error(f"❌ Calculation error for '{original}' from {ui['full_name']} (@{ui['username']}): {e}")
+            logger.error(f"❌ Failed to send fallback error message: {fallback_error}")
 
 # HTTP health check handler class
 class DummyHandler(BaseHTTPRequestHandler):
