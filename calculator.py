@@ -62,13 +62,45 @@ COMMANDS = [
 ]
 logger.debug(f"📋 Defined bot commands: {COMMANDS}")
 
-# Regex pattern for math expressions (removed % from the pattern)
-MATH_PATTERN = re.compile(r'([-+]?\d[\d\.\s]*(?:[+\-*/×÷]\s*[\d\.\s]+)+)')
+# Fixed regex pattern for complete math expressions only
+# This pattern requires complete expressions with operands on both sides
+MATH_PATTERN = re.compile(r'\b(\d+(?:\.\d+)?\s*[+\-*/×÷]\s*\d+(?:\.\d+)?(?:\s*[+\-*/×÷]\s*\d+(?:\.\d+)?)*)\b')
 logger.debug(f"🔧 Compiled MATH_PATTERN: {MATH_PATTERN.pattern}")
 
 # Concurrency control for sending messages
 semaphore = asyncio.Semaphore(20)
 logger.debug("🔒 Initialized semaphore for message sending with limit 20")
+
+# Function to validate if expression is actually calculable
+def is_valid_math_expression(expr):
+    """
+    Additional validation to ensure the expression is a complete mathematical statement
+    """
+    try:
+        # Remove spaces and convert symbols
+        clean_expr = expr.strip().replace(" ", "").replace("×", "*").replace("÷", "/")
+        
+        # Check if expression ends with an operator (incomplete)
+        if clean_expr.endswith(('+', '-', '*', '/', '×', '÷')):
+            return False
+            
+        # Check if expression starts with an operator (except negative numbers)
+        if clean_expr.startswith(('*', '/', '×', '÷')):
+            return False
+            
+        # Must contain at least one operator and two operands
+        operators = ['+', '-', '*', '/', '×', '÷']
+        has_operator = any(op in clean_expr for op in operators)
+        if not has_operator:
+            return False
+            
+        # Try to evaluate to see if it's valid
+        safe_expr = clean_expr.replace("×", "*").replace("÷", "/")
+        simple_eval(safe_expr)
+        return True
+        
+    except Exception:
+        return False
 
 # Extract user and chat information
 def extract_user_info(update: Update):
@@ -286,8 +318,17 @@ async def calculate_expression(update: Update, context: ContextTypes.DEFAULT_TYP
         matches = MATH_PATTERN.findall(text)
         logger.debug(f"🔎 Regex matches found: {matches}")
         
-        if not matches:
-            logger.info("ℹ️ No math expression found in message")
+        # Filter matches to only include valid mathematical expressions
+        valid_matches = []
+        for match in matches:
+            if is_valid_math_expression(match):
+                valid_matches.append(match)
+                logger.debug(f"✅ Valid math expression: {match}")
+            else:
+                logger.debug(f"❌ Invalid/incomplete math expression ignored: {match}")
+        
+        if not valid_matches:
+            logger.info("ℹ️ No valid math expression found in message")
             if is_private or is_reply_to_bot:
                 try:
                     await context.bot.send_chat_action(update.effective_chat.id, ChatAction.TYPING)
@@ -311,10 +352,9 @@ async def calculate_expression(update: Update, context: ContextTypes.DEFAULT_TYP
                     logger.error(f"🔍 Reminder error traceback: {traceback.format_exc()}")
             return
         
-        for expr in matches:
+        for expr in valid_matches:
             start_time = time.time()
             original = expr.strip().replace(" ", "")
-            # Removed percentage calculation - only handle basic math operations
             safe = original.replace("×", "*").replace("÷", "/")
             logger.debug(f"🧮 Processing expression: original='{original}', safe='{safe}'")
             
@@ -379,15 +419,7 @@ async def calculate_expression(update: Update, context: ContextTypes.DEFAULT_TYP
             except Exception as calc_error:
                 logger.error(f"❌ Calculation error for '{original}' from {ui['full_name']} (@{ui['username']}): {calc_error}")
                 logger.error(f"🔍 Calculation error traceback: {traceback.format_exc()}")
-                try:
-                    await safe_send_message(
-                        context.bot,
-                        update.effective_chat.id,
-                        f"❌ Error calculating '{original}': {type(calc_error).__name__}",
-                        reply_to=update.message.message_id if not is_private else None,
-                    )
-                except Exception as error_send_error:
-                    logger.error(f"❌ Failed to send calculation error message: {error_send_error}")
+                # Removed the error response to user for calculation errors to avoid spam
                     
     except Exception as e:
         logger.error(f"❌ Critical error in calculate_expression: {e}")
