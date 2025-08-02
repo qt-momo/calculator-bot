@@ -1,17 +1,26 @@
-import logging
-import re
-import time
-import random
-import asyncio
 import os
-import traceback
+import re
 import sys
+import time
+import asyncio
+import random
+import logging
+import threading
+import traceback
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 from simpleeval import simple_eval, InvalidExpression
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.constants import ChatAction, ChatType
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+    CallbackQueryHandler,
+)
 
 # Configuration
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -329,7 +338,7 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.edit_text(
             MESSAGES['pong'].format(ms=response_time),
             parse_mode='HTML',
-            disable_web_page_preview=False
+            disable_web_page_preview=True
         )
         logger.info(f"🏓 Ping reply edited successfully: {response_time}ms")
         
